@@ -38,6 +38,8 @@ module.exports = (io) => {
         bluePlayer: true,
         bluePlayerCount: 0,
         redPlayerCount:0,
+        scoreTeamRed:0,
+        scoreTeamBlue:0,
         ball:{x:510,y:255}
       };
       socket.emit("roomCreated", key);
