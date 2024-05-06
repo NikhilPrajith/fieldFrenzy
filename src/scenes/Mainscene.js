@@ -13,6 +13,7 @@ export default class MainScene extends Phaser.Scene {
     this.scoreTeamRed = 0;
     this.scoreText;
     this.goalAnimationText;
+    this.arrow = null;
   }
 
   preload() {
@@ -35,14 +36,38 @@ export default class MainScene extends Phaser.Scene {
 
     this.load.image("ball", "sportsPack/PNG/Equipment/ball_soccer2.png");
     this.load.image("mainroom", "Images/soccer-field3.png");
+
+    //Referee
+    this.load.image('refBod', 'sportsPack/PNG/Special/characterSpecial (4).png');
+    this.load.image('refHand', 'sportsPack/PNG/Special/characterSpecial (11).png');
+    this.load.image('refFlag', 'sportsPack/PNG/Equipment/flag_green.png');
   }
 
   create() {
     const scene = this;
     //BACKGROUND
-    var pitchImage = this.add.image(0, 0, "mainroom").setOrigin(0, 0);
+    var pitchImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, "mainroom").setOrigin(0.5, 0.5);
     pitchImage.displayWidth = 1020;
     pitchImage.displayHeight = 510;
+
+    const referee = this.add.container(50,10);
+
+    const hand = this.add.image(10, 10, 'refHand'); 
+    const body = this.add.image(0, 0, 'refBod'); 
+    const flag = this.add.image(20, 3, 'refFlag'); // Referee's flag
+
+    referee.add([flag,hand,body]);
+    referee.setScale(0.65);
+    referee.setRotation(Math.PI/2)
+
+    const referee2 = this.add.container(scene.game.config.width-60,scene.game.config.height-10);
+
+    const hand2 = this.add.image(10, 10, 'refHand'); 
+    const body2 = this.add.image(0, 0, 'refBod'); // Body
+    const flag2 = this.add.image(20, 3, 'refFlag'); // Referee's flag
+    referee2.add([hand2,flag2,body2]);
+    referee2.setScale(0.65);
+    referee2.setRotation(Math.PI*(3/2));
 
     this.createGoals();
 
@@ -78,8 +103,10 @@ export default class MainScene extends Phaser.Scene {
       scene.state.players = players;
       scene.state.numPlayers = numPlayers;
       scene.state.ball = ball;
+      console.log("new state set", state);
       scene.scoreTeamBlue = scoreTeamBlue;
       scene.scoreTeamRed = scoreTeamRed;
+      scene.updateScoreUI();
     });
 
     // PLAYERS
@@ -118,14 +145,6 @@ export default class MainScene extends Phaser.Scene {
           const oldY = otherPlayer.y;
           otherPlayer.setPosition(playerInfo.x, playerInfo.y);
           otherPlayer.setRotation(playerInfo.rotation);
-        }
-      });
-    });
-
-    this.socket.on("otherPlayerStopped", function (playerInfo) {
-      scene.otherPlayers.getChildren().forEach(function (otherPlayer) {
-        if (playerInfo.playerId === otherPlayer.playerId) {
-          otherPlayer.anims.stop(null, true);
         }
       });
     });
@@ -202,6 +221,11 @@ export default class MainScene extends Phaser.Scene {
 
     //MOVEMENT
     if (this.player) {
+      if (this.arrow) {
+        const arrowSize = 20;
+        this.arrow.clear();
+        this.createArrow();
+      }
       const speed = 225;
       const prevVelocity = this.player.body.velocity.clone();
       // Stop any previous movement from the last frame
@@ -340,6 +364,9 @@ export default class MainScene extends Phaser.Scene {
       .setSize(30, 40)
       .setOffset(0, 24)
       .setCollideWorldBounds(true);
+    
+    // Create an arrow above the player
+    this.createArrow();
   }
   addBall(scene, ballInfo) {
     scene.ball = scene.physics.add
@@ -384,6 +411,16 @@ export default class MainScene extends Phaser.Scene {
       dribbling: false,
       roomKey: this.state.roomKey,
     });
+  }
+  createArrow() {
+    const arrowSize = 7;  // Size of the arrow
+    this.arrow = this.add.graphics({ fillStyle: { color: 0xffffff } });
+    this.arrow.fillTriangle(
+      this.player.x - arrowSize / 2, this.player.y - this.player.displayHeight / 2 - 10, // Left side of the base
+      this.player.x + arrowSize / 2, this.player.y - this.player.displayHeight / 2 - 10, // Right side of the base
+      this.player.x, this.player.y - this.player.displayHeight / 2 - 3 // Bottom point of the arrow
+    );
+    this.arrow.setDepth(10);  // Ensure the arrow is above most other objects
   }
 
   shootBall(angleToPointer) {
@@ -455,44 +492,53 @@ export default class MainScene extends Phaser.Scene {
     });
     // Define the goal areas, adjust sizes and positions according to your game field
     this.goalRight = new Phaser.Geom.Rectangle(
-      -5,
-      scene.game.config.height / 2 - 75,
+      5,
+      scene.game.config.height / 2 - 67.5,
       15,
-      150
+      135
     );
     this.goalLeft = new Phaser.Geom.Rectangle(
-      scene.game.config.width - 10,
-      scene.game.config.height / 2 - 75,
+      scene.game.config.width - 20,
+      scene.game.config.height / 2 - 67.5,
       15,
-      150
+      135
     );
 
     this.goalLeftGraphics.fillRectShape(this.goalLeft);
     this.goalRightGraphics.fillRectShape(this.goalRight);
 
-    // Optionally, you can add visual sprites for goals if needed
-    // scene.add.sprite(10, scene.game.config.height / 2, 'goalSprite').setDisplaySize(20, 200);
-    // scene.add.sprite(scene.game.config.width - 10, scene.game.config.height / 2, 'goalSprite').setDisplaySize(20, 200);
   }
 
   scoreGoal(side) {
+    const now = this.time.now;
+    if (this.lastGoalTime && (now - this.lastGoalTime < 100)) {
+        return; // Prevents scoring if last goal was less than 1 second ago
+    }
+
     if (side === "left") {
-      this.scoreTeamRed++; // Assuming scoring in left goal is a point for the right team
+      console.log("hit left")
+      this.scoreTeamBlue++; 
     } else {
-      this.scoreTeamBlue++; // And vice versa
+      console.log("hit right")
+      this.scoreTeamRed++; 
     }
 
     console.log(
       `Goal scored on ${side} side! Score - Left: ${this.scoreTeamLeft}, Right: ${this.scoreTeamRight}`
     );
+    this.socket.emit("goalScored", {
+      scoreTeamBlue:this.scoreTeamBlue,
+      scoreTeamRed:this.scoreTeamRed,
+      roomKey: this.state.roomKey,
+    });
 
-    // Reset the ball to the center of the pitch
 
     this.updateScoreUI();
     this.showGoalAnimation(side);
+    this.lastGoalTime = now;
   }
   createScoreboard() {
-    const style = { font: "32px Arial", fill: "#ffffff" };
+    const style = { font: "30px Georgia", fill: "#ffffff"};
     this.scoreText = this.add
       .text(
         this.cameras.main.centerX,
@@ -503,13 +549,14 @@ export default class MainScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
   }
   updateScoreUI() {
+    console.log("score ui updating", this.scoreTeamBlue, this.scoreTeamRed);
     this.scoreText.setText(
       `Blue: ${this.scoreTeamBlue} - Red: ${this.scoreTeamRed}`
     );
   }
   showGoalAnimation(side) {
     const style = {
-      font: "48px Arial",
+      font: "48px Georgia",
       fill: "#ff0000",
       stroke: "#ffffff",
       strokeThickness: 6,
@@ -528,7 +575,7 @@ export default class MainScene extends Phaser.Scene {
       this.goalAnimationText.setVisible(true);
     }
 
-    // Animation lasts 200ms then disappears
+    // Animation lasts 300ms then disappears
     this.time.delayedCall(
       300,
       () => {

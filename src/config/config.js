@@ -1,8 +1,8 @@
 export default {
   type: Phaser.AUTO, // Specify the underlying browser rendering engine (AUTO, CANVAS, WEBGL)
   // AUTO will attempt to use WEBGL, but if not available it'll default to CANVAS
-  width: 1020, // Game width in pixels
-  height: 510, // Game height in pixels
+  width: 1040, // Game width in pixels
+  height: 530, // Game height in pixels
   render: {
     pixelArt: true,
   },

@@ -17,7 +17,6 @@ module.exports = (io) => {
     );
     //for testing
 
-
     //---------
 
     socket.on("isKeyValid", function (input) {
@@ -25,7 +24,7 @@ module.exports = (io) => {
         ? socket.emit("keyIsValid", input)
         : socket.emit("keyNotValid");
     });
-    //Get a random code for the room and set up the room state, intially all empty  
+    //Get a random code for the room and set up the room state, intially all empty
     socket.on("getRoomCode", async function () {
       let key = codeGenerator();
       while (Object.keys(gameRooms).includes(key)) {
@@ -37,10 +36,10 @@ module.exports = (io) => {
         numPlayers: 0,
         bluePlayer: true,
         bluePlayerCount: 0,
-        redPlayerCount:0,
-        scoreTeamRed:0,
-        scoreTeamBlue:0,
-        ball:{x:510,y:255}
+        redPlayerCount: 0,
+        scoreTeamRed: 0,
+        scoreTeamBlue: 0,
+        ball: { x: 510, y: 255 },
       };
       socket.emit("roomCreated", key);
     });
@@ -51,28 +50,27 @@ module.exports = (io) => {
       let lastRoomPlayerType = roomInfo.bluePlayer;
 
       let tempX, tempY;
-      if(lastRoomPlayerType){
-        tempX= 640+(40*roomInfo.redPlayerCount);
-        tempY = 255
-      }else{
-        tempX = 410 - (40*roomInfo.bluePlayerCount);
-        tempY = 255
+      if (lastRoomPlayerType) {
+        tempX = 640 + 40 * roomInfo.redPlayerCount;
+        tempY = 255;
+      } else {
+        tempX = 410 - 40 * roomInfo.bluePlayerCount;
+        tempY = 255;
       }
-
 
       roomInfo.players[socket.id] = {
         rotation: 0,
         x: tempX,
         y: tempY,
         playerId: socket.id,
-        bluePlayer:!lastRoomPlayerType
+        bluePlayer: !lastRoomPlayerType,
       };
-      roomInfo.bluePlayer = !lastRoomPlayerType
+      roomInfo.bluePlayer = !lastRoomPlayerType;
       console.log("counts", roomInfo);
-      if(!lastRoomPlayerType){
-        roomInfo.redPlayerCount +=1
-      }else{
-        roomInfo.bluePlayerCount += 1
+      if (!lastRoomPlayerType) {
+        roomInfo.redPlayerCount += 1;
+      } else {
+        roomInfo.bluePlayerCount += 1;
       }
 
       // update number of players
@@ -87,14 +85,13 @@ module.exports = (io) => {
         numPlayers: roomInfo.numPlayers,
       });
 
-
       // update all other players of the new player
       socket.to(roomKey).emit("newPlayer", {
         playerInfo: roomInfo.players[socket.id],
         numPlayers: roomInfo.numPlayers,
       });
 
-      socket.emit('initializeBall',{
+      socket.emit("initializeBall", {
         ballInfo: roomInfo.ball,
       });
     });
@@ -111,30 +108,29 @@ module.exports = (io) => {
         .to(roomKey)
         .emit("playerMoved", gameRooms[roomKey].players[socket.id]);
     });
+    socket.on("goalScored", function (data) {
+      const { scoreTeamBlue, scoreTeamRed, roomKey } = data;
+      gameRooms[roomKey].scoreTeamBlue = scoreTeamBlue;
+      gameRooms[roomKey].scoreTeamRed = scoreTeamRed;
+      console.log("goal update here", scoreTeamBlue, scoreTeamRed);
+      // emit a message to all players about the player that moved
+    });
 
     //BALL MOVEMENT
-    socket.on("ballMovement", function(data) {
-      console.log("ballMovementData", data)
-      const {x,y, roomKey} = data;
+    socket.on("ballMovement", function (data) {
+      console.log("ballMovementData", data);
+      const { x, y, roomKey } = data;
       gameRooms[roomKey].ball.x = x;
       gameRooms[roomKey].ball.y = y;
       // Broadcast ball position to all other clients except the sender
-      socket
-        .to(roomKey)
-        .emit("updateBallPosition", data);
+      socket.to(roomKey).emit("updateBallPosition", data);
     });
-    socket.on("shootBall", function(data) {
-      console.log("shootingBall", data)
-      const {velX, velY,roomKey} = data;
+    socket.on("shootBall", function (data) {
+      console.log("shootingBall", data);
+      const { velX, velY, roomKey } = data;
       // Broadcast ball position to all other clients except the sender
-      socket
-        .to(roomKey)
-        .emit("shootBall", data);
+      socket.to(roomKey).emit("shootBall", data);
     });
-  
-
-
-    
 
     // when a player disconnects, remove them from our players object
     socket.on("disconnect", function () {
